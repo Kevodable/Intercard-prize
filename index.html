@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Intercard Prize Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161922;
+    --surface2: #1e2330;
+    --border: #2a2f3d;
+    --accent: #00e5a0;
+    --accent2: #0094ff;
+    --danger: #ff4d6d;
+    --text: #e8ecf5;
+    --text-muted: #6b7590;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    width: 42px; height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-family: var(--mono);
+    font-size: 18px;
+    color: #000;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .badge {
+    margin-left: auto;
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.3);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* Form panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Form grid */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .form-grid .full { grid-column: 1 / -1; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .input-wrap {
+    position: relative;
+    display: flex;
+  }
+
+  input[type="text"],
+  input[type="number"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 10px 12px;
+    transition: border-color 0.15s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input[type="text"]:focus,
+  input[type="number"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,160,0.1);
+  }
+
+  input.has-icon { padding-right: 44px; }
+
+  .scan-btn {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 42px;
+    background: rgba(0,229,160,0.12);
+    border: none;
+    border-left: 1px solid var(--border);
+    border-radius: 0 8px 8px 0;
+    cursor: pointer;
+    display: grid; place-items: center;
+    transition: background 0.15s;
+    color: var(--accent);
+  }
+
+  .scan-btn:hover { background: rgba(0,229,160,0.22); }
+  .scan-btn:active { background: rgba(0,229,160,0.3); }
+
+  /* Toggle row */
+  .toggle-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .toggle-option {
+    flex: 1;
+    position: relative;
+  }
+
+  .toggle-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0; height: 0;
+  }
+
+  .toggle-option label {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+
+  .toggle-option input:checked + label {
+    background: rgba(0,229,160,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Preview line */
+  .preview-box {
+    background: #0a0c10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    word-break: break-all;
+    min-height: 40px;
+    transition: all 0.2s;
+  }
+
+  .preview-box.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-family: var(--sans);
+  }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    flex: 1;
+  }
+
+  .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: var(--surface2);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { color: var(--text); border-color: #4a5068; }
+
+  /* Products list */
+  .list-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+  .product-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .row-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    min-width: 20px;
+    text-align: right;
+  }
+
+  .row-info { flex: 1; min-width: 0; }
+
+  .row-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-csv {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-del {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    display: grid; place-items: center;
+  }
+
+  .row-del:hover { color: var(--danger); background: rgba(255,77,109,0.1); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  .empty-state svg { opacity: 0.3; margin-bottom: 12px; }
+
+  /* Export section */
+  .export-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .export-bar .count {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-right: auto;
+  }
+
+  .export-bar .count span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .btn-export {
+    background: var(--accent2);
+    color: #fff;
+  }
+
+  .btn-export:hover { background: #33aaff; transform: translateY(-1px); }
+
+  .btn-clear {
+    background: rgba(255,77,109,0.1);
+    color: var(--danger);
+    border: 1px solid rgba(255,77,109,0.3);
+  }
+
+  .btn-clear:hover { background: rgba(255,77,109,0.2); }
+
+  /* Camera scanner */
+  .scanner-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .scanner-overlay.open { display: flex; }
+
+  .scanner-box {
+    position: relative;
+    width: min(90vw, 400px);
+    border-radius: 16px;
+    overflow: hidden;
+    background: #000;
+    aspect-ratio: 4/3;
+  }
+
+  #scanner-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .scanner-crosshair {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  .crosshair-inner {
+    width: 60%; height: 40%;
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    box-shadow: 0 0 0 4000px rgba(0,0,0,0.4);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { border-color: var(--accent); box-shadow: 0 0 0 4000px rgba(0,0,0,0.4), 0 0 20px rgba(0,229,160,0.3); }
+    50% { border-color: #00ffb3; box-shadow: 0 0 0 4000px rgba(0,0,0,0.4), 0 0 30px rgba(0,229,160,0.6); }
+  }
+
+  .scanner-msg {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .scanner-close {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 32px;
+    border-radius: 8px;
+    border: none;
+    background: var(--surface2);
+    color: var(--text);
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+
+  .scanner-manual {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Notification */
+  .notif {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 18px;
+    border-radius: 8px;
+    z-index: 200;
+    transform: translateY(60px);
+    opacity: 0;
+    transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notif.show { transform: translateY(0); opacity: 1; }
+  .notif.error { border-color: var(--danger); color: var(--danger); }
+
+  @media (max-width: 500px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-grid .full { grid-column: 1; }
+    header h1 { font-size: 15px; }
+    .badge { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">IC</div>
+    <div>
+      <h1>Intercard Prize Manager</h1>
+      <p>Generatore file prodotti per gestionale</p>
+    </div>
+    <div class="badge">Big Ben</div>
+  </header>
+
+  <!-- Form panel -->
+  <div class="panel">
+    <div class="panel-title">Nuovo prodotto</div>
+    <div class="form-grid">
+
+      <!-- Barcode -->
+      <div class="field full">
+        <label>Barcode / UPC</label>
+        <div class="input-wrap">
+          <input type="text" id="f-barcode" class="has-icon" placeholder="Es. 0640497126528" autocomplete="off">
+          <button class="scan-btn" onclick="openScanner()" title="Scansiona con fotocamera">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/>
+              <rect x="3" y="16" width="5" height="5" rx="1"/>
+              <line x1="16" y1="16" x2="21" y2="21"/><line x1="16" y1="21" x2="21" y2="16"/>
+              <line x1="12" y1="3" x2="12" y2="8"/><line x1="3" y1="12" x2="8" y2="12"/>
+              <line x1="16" y1="12" x2="21" y2="12"/><line x1="12" y1="16" x2="12" y2="21"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Nome prodotto -->
+      <div class="field full">
+        <label>Nome Prodotto</label>
+        <input type="text" id="f-name" placeholder="Es. Yellow Yo-Yo" autocomplete="off">
+      </div>
+
+      <!-- Each -->
+      <div class="field">
+        <label>Each</label>
+        <input type="text" id="f-each" value="EACH" placeholder="EACH">
+      </div>
+
+      <!-- Quantità -->
+      <div class="field">
+        <label>Quantità Totale</label>
+        <input type="number" id="f-qty" placeholder="1" min="0" step="1">
+      </div>
+
+      <!-- Prezzo -->
+      <div class="field">
+        <label>Price</label>
+        <input type="number" id="f-price" placeholder="0.05" min="0" step="0.01">
+      </div>
+
+      <!-- Ticket Value -->
+      <div class="field">
+        <label>Ticket Value</label>
+        <input type="number" id="f-tickets" placeholder="15" min="0" step="1">
+      </div>
+
+      <!-- Colonna fissa "1" -->
+      <div class="field">
+        <label>Valore fisso (col. 7)</label>
+        <input type="number" id="f-fixed" value="1" placeholder="1">
+      </div>
+
+      <!-- Same as Price -->
+      <div class="field">
+        <label>Same as Price</label>
+        <input type="number" id="f-same" placeholder="0.05" min="0" step="0.01">
+      </div>
+
+    </div>
+
+    <!-- Anteprima CSV -->
+    <div style="margin-top: 16px;">
+      <label style="font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted)">Anteprima riga CSV</label>
+      <div class="preview-box empty" id="preview-line">Compila i campi per vedere l'anteprima…</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="clearForm()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        Reset
+      </button>
+      <button class="btn btn-primary" onclick="addProduct()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Aggiungi prodotto
+      </button>
+    </div>
+  </div>
+
+  <!-- Lista prodotti -->
+  <div class="panel">
+    <div class="panel-title">Prodotti aggiunti</div>
+    <div id="product-list" class="list-wrap">
+      <div class="empty-state">
+        <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <div>Nessun prodotto aggiunto.<br>Compila il modulo sopra e clicca <strong>Aggiungi prodotto</strong>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="panel">
+    <div class="panel-title">Esporta file</div>
+    <div class="export-bar">
+      <div class="count"><span id="count-num">0</span> prodotti</div>
+      <button class="btn btn-ghost btn-clear" onclick="clearAll()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        Svuota lista
+      </button>
+      <button class="btn btn-export" onclick="exportFile()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
+        Scarica .txt
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Scanner overlay -->
+<div class="scanner-overlay" id="scanner-overlay">
+  <div class="scanner-box">
+    <video id="scanner-video" autoplay playsinline muted></video>
+    <div class="scanner-crosshair"><div class="crosshair-inner"></div></div>
+  </div>
+  <p class="scanner-msg">Inquadra il barcode del prodotto</p>
+  <p class="scanner-manual" id="scan-status">Inizializzazione fotocamera…</p>
+  <button class="scanner-close" onclick="closeScanner()">✕ Chiudi</button>
+</div>
+
+<!-- Notification -->
+<div class="notif" id="notif"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+const products = [];
+let scannerStream = null;
+let barcodeDetector = null;
+let scanLoop = null;
+
+// ─── Live preview ─────────────────────────────────────────
+function fields() {
+  return {
+    barcode: document.getElementById('f-barcode').value.trim(),
+    name: document.getElementById('f-name').value.trim(),
+    each: document.getElementById('f-each').value.trim() || 'EACH',
+    qty: document.getElementById('f-qty').value.trim(),
+    price: document.getElementById('f-price').value.trim(),
+    tickets: document.getElementById('f-tickets').value.trim(),
+    fixed: document.getElementById('f-fixed').value.trim() || '1',
+    same: document.getElementById('f-same').value.trim(),
+  };
+}
+
+function toCSV(f) {
+  return [f.barcode, f.name, f.each, f.qty, f.price, f.tickets, f.fixed, f.same].join(',');
+}
+
+function updatePreview() {
+  const f = fields();
+  const el = document.getElementById('preview-line');
+  const csv = toCSV(f);
+  if (csv === ',,,,,,,') {
+    el.textContent = 'Compila i campi per vedere l\'anteprima…';
+    el.classList.add('empty');
+  } else {
+    el.textContent = csv;
+    el.classList.remove('empty');
+  }
+}
+
+document.querySelectorAll('input').forEach(i => i.addEventListener('input', updatePreview));
+
+// Auto-fill same as price when price changes
+document.getElementById('f-price').addEventListener('input', function() {
+  const sameField = document.getElementById('f-same');
+  if (!sameField._userEdited) sameField.value = this.value;
+  updatePreview();
+});
+document.getElementById('f-same').addEventListener('input', function() {
+  this._userEdited = !!this.value;
+});
+
+// ─── Add product ──────────────────────────────────────────
+function addProduct() {
+  const f = fields();
+  if (!f.barcode || !f.name) {
+    notify('Barcode e Nome prodotto sono obbligatori', true);
+    return;
+  }
+  products.push(f);
+  renderList();
+  updateCount();
+  clearForm();
+  notify('Prodotto aggiunto ✓');
+}
+
+function clearForm() {
+  ['f-barcode','f-name','f-qty','f-price','f-tickets','f-same'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = '';
+    if (id === 'f-same') el._userEdited = false;
+  });
+  document.getElementById('f-each').value = 'EACH';
+  document.getElementById('f-fixed').value = '1';
+  updatePreview();
+}
+
+// ─── Render list ──────────────────────────────────────────
+function renderList() {
+  const wrap = document.getElementById('product-list');
+  if (products.length === 0) {
+    wrap.innerHTML = `<div class="empty-state">
+      <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      <div>Nessun prodotto aggiunto.<br>Compila il modulo sopra e clicca <strong>Aggiungi prodotto</strong>.</div>
+    </div>`;
+    return;
+  }
+  wrap.innerHTML = products.map((p, i) => `
+    <div class="product-row" id="row-${i}">
+      <div class="row-num">${i+1}</div>
+      <div class="row-info">
+        <div class="row-name">${escHtml(p.name)}</div>
+        <div class="row-csv">${escHtml(toCSV(p))}</div>
+      </div>
+      <button class="row-del" onclick="deleteProduct(${i})" title="Rimuovi">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function deleteProduct(i) {
+  products.splice(i, 1);
+  renderList();
+  updateCount();
+}
+
+function clearAll() {
+  if (products.length === 0) return;
+  if (!confirm(`Eliminare tutti i ${products.length} prodotti?`)) return;
+  products.length = 0;
+  renderList();
+  updateCount();
+}
+
+function updateCount() {
+  document.getElementById('count-num').textContent = products.length;
+}
+
+// ─── Export ───────────────────────────────────────────────
+function exportFile() {
+  if (products.length === 0) { notify('Aggiungi almeno un prodotto', true); return; }
+  const content = products.map(p => toCSV(p)).join('\n');
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `intercard_prizes_${dateStamp()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  notify(`File esportato (${products.length} righe) ✓`);
+}
+
+function dateStamp() {
+  const d = new Date();
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Barcode scanner ──────────────────────────────────────
+async function openScanner() {
+  const overlay = document.getElementById('scanner-overlay');
+  overlay.classList.add('open');
+  document.getElementById('scan-status').textContent = 'Avvio fotocamera…';
+
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById('scanner-video');
+    video.srcObject = scannerStream;
+
+    if ('BarcodeDetector' in window) {
+      barcodeDetector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','qr_code'] });
+      document.getElementById('scan-status').textContent = 'Pronto — inquadra il barcode';
+      startScanLoop(video);
+    } else {
+      document.getElementById('scan-status').textContent = '⚠ Rilevamento non disponibile — inserisci manualmente';
+    }
+  } catch(e) {
+    document.getElementById('scan-status').textContent = '✕ Fotocamera non accessibile';
+  }
+}
+
+function startScanLoop(video) {
+  scanLoop = setInterval(async () => {
+    if (!barcodeDetector || video.readyState < 2) return;
+    try {
+      const codes = await barcodeDetector.detect(video);
+      if (codes.length > 0) {
+        const val = codes[0].rawValue;
+        document.getElementById('f-barcode').value = val;
+        updatePreview();
+        closeScanner();
+        notify(`Barcode acquisito: ${val}`);
+      }
+    } catch {}
+  }, 300);
+}
+
+function closeScanner() {
+  clearInterval(scanLoop);
+  const overlay = document.getElementById('scanner-overlay');
+  overlay.classList.remove('open');
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  const video = document.getElementById('scanner-video');
+  video.srcObject = null;
+}
+
+// ─── Notification ─────────────────────────────────────────
+let notifTimer = null;
+function notify(msg, err = false) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.classList.toggle('error', err);
+  el.classList.add('show');
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ─── Enter key on form ────────────────────────────────────
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') addProduct(); });
+});
+</script>
+</body>
+</html>
