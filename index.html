@@ -733,7 +733,30 @@
 
 <script>
 // ─── State ───────────────────────────────────────────────
+const STORAGE_KEY = 'bigben_products_v1';
 const products = [];
+
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); } catch {}
+}
+
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        products.push(...parsed);
+        renderList();
+        updateCount();
+        notify(`Ripristinati ${parsed.length} prodott${parsed.length === 1 ? 'o' : 'i'} dall'ultima sessione`);
+      }
+    }
+  } catch {}
+}
+
+// Call on page load
+window.addEventListener('DOMContentLoaded', loadFromStorage);
 
 // ─── Live preview ─────────────────────────────────────────
 function fields() {
@@ -788,6 +811,7 @@ function addProduct() {
   products.push(f);
   renderList();
   updateCount();
+  saveToStorage();
   clearForm();
   notify('Prodotto aggiunto ✓');
 }
@@ -834,6 +858,7 @@ function deleteProduct(i) {
   products.splice(i, 1);
   renderList();
   updateCount();
+  saveToStorage();
 }
 
 function clearAll() {
@@ -842,6 +867,7 @@ function clearAll() {
   products.length = 0;
   renderList();
   updateCount();
+  saveToStorage();
 }
 
 function updateCount() {
