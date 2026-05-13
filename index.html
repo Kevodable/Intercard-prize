@@ -1041,26 +1041,33 @@ function calcEAN13Check(digits12) {
 }
 
 function generateBarcode() {
-  const slot    = getDeviceSlot();           // es. "07"
-  const counter = getNextCounter();          // 0 → 999999
+  const slot    = getDeviceSlot();      // stringa "01"-"99"
+  const counter = getNextCounter();     // intero 0 → 999999
   if (counter > 999999) {
     notify('Esauriti i codici per questo dispositivo (1.000.000)', true);
     return;
   }
 
-  // Formato: 2 + slot(2) + counter(6 cifre con zero-padding) = 10 cifre → + check = 13
-  const digits12 = '2' + slot + String(counter).padStart(6, '0') + '00';
-  // Sostituisce le ultime 2 cifre fisse con un hash del counter per evitare pattern ovvi
-  const base = '2' + slot + String(counter).padStart(6, '0') + String(slot % 10) + String(counter % 10);
-  const check = calcEAN13Check(base);
-  const ean = base + check;
+  // Costruisce esattamente 12 cifre numeriche:
+  // "2" + slot(2) + counter(7 cifre) + "0" = 12 cifre → poi check digit = 13
+  const slotNum    = parseInt(slot, 10);
+  const s1         = String(slotNum).padStart(2, '0');   // 2 cifre
+  const s2         = String(counter).padStart(7, '0');   // 7 cifre
+  const base12     = '2' + s1 + s2 + '0';               // 1+2+7+1 = 11... fix:
 
-  // Salva anche nel registro globale per sicurezza
+  // Schema corretto: 2(1) + slot(2) + counter(6) + filler(3) = 12
+  const counterStr = String(counter).padStart(6, '0');   // 6 cifre
+  const slotStr    = String(slotNum).padStart(2, '0');   // 2 cifre
+  const filler     = String(slotNum % 100).padStart(3, '0'); // 3 cifre deterministiche per slot
+  const digits12   = '2' + slotStr + counterStr + filler; // 1+2+6+3 = 12 cifre
+
+  const check = calcEAN13Check(digits12);
+  const ean   = digits12 + check; // 13 cifre
+
   saveUsedBarcode(ean);
-
   document.getElementById('f-barcode').value = ean;
   updatePreview();
-  notify(`EAN-13 generato ✓ (slot ${slot}, #${counter + 1})`);
+  notify(`EAN-13 generato ✓ (slot ${slotStr}, #${counter + 1})`);
 }
 
 function loadUsedBarcodes() {
