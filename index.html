@@ -901,49 +901,79 @@ async function printAllLabels() {
 async function generateLabelsPDF(items) {
   const { jsPDF } = window.jspdf;
 
-  const W = 85, H = 55;
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [H, W] });
+  // A4 portrait: 210 x 297 mm
+  const PAGE_W = 210, PAGE_H = 297;
+  const COLS = 3, ROWS = 4;
+  const MARGIN_X = 10, MARGIN_Y = 12;
+  const GAP_X = 5, GAP_Y = 6;
+
+  // Card size calculated to fill A4 in a 3x4 grid
+  const CW = (PAGE_W - MARGIN_X * 2 - GAP_X * (COLS - 1)) / COLS; // ~60mm
+  const CH = (PAGE_H - MARGIN_Y * 2 - GAP_Y * (ROWS - 1)) / ROWS; // ~63mm
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
   items.forEach((p, idx) => {
-    if (idx > 0) doc.addPage([H, W], 'landscape');
+    const page  = Math.floor(idx / (COLS * ROWS));
+    const slot  = idx % (COLS * ROWS);
+    const col   = slot % COLS;
+    const row   = Math.floor(slot / COLS);
 
-    // Navy background
+    if (idx > 0 && slot === 0) doc.addPage('a4', 'portrait');
+
+    const x = MARGIN_X + col * (CW + GAP_X);
+    const y = MARGIN_Y + row * (CH + GAP_Y);
+
+    // ── Navy background ──────────────────────────────────
     doc.setFillColor(10, 15, 107);
-    doc.roundedRect(0, 0, W, H, 3, 3, 'F');
+    doc.roundedRect(x, y, CW, CH, 3, 3, 'F');
 
-    // ── TOP: nome prodotto (banda gialla) ────────────────
+    // ── Top band: nome prodotto ──────────────────────────
+    const bandH = CH * 0.18;
     doc.setFillColor(245, 200, 0);
-    doc.roundedRect(0, 0, W, 11, 3, 3, 'F');
-    doc.rect(0, 5, W, 6, 'F');
-    doc.setTextColor(10, 15, 107);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    const nameStr = p.name.length > 34 ? p.name.substring(0, 33) + '…' : p.name;
-    doc.text(nameStr, W / 2, 7.8, { align: 'center' });
-
-    // ── CENTRO: badge TICKETS grande ────────────────────
-    const bW = 60, bH = 24, bX = (W - bW) / 2, bY = 13;
-    doc.setFillColor(245, 200, 0);
-    doc.roundedRect(bX, bY, bW, bH, 4, 4, 'F');
+    doc.roundedRect(x, y, CW, bandH, 3, 3, 'F');
+    doc.rect(x, y + bandH * 0.5, CW, bandH * 0.5, 'F');
 
     doc.setTextColor(10, 15, 107);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.text('TICKETS', W / 2, bY + 6, { align: 'center' });
+    const nameFontSize = CW > 55 ? 8 : 6.5;
+    doc.setFontSize(nameFontSize);
+    const maxChars = Math.floor(CW / 2.8);
+    const nameStr = p.name.length > maxChars ? p.name.substring(0, maxChars - 1) + '…' : p.name;
+    doc.text(nameStr, x + CW / 2, y + bandH * 0.72, { align: 'center' });
 
-    doc.setFontSize(22);
-    doc.text(String(p.tickets || '—'), W / 2, bY + 18, { align: 'center' });
+    // ── Centro: badge TICKETS ─────────────────────────────
+    const bY = y + bandH + CH * 0.04;
+    const bH = CH * 0.42;
+    const bW = CW * 0.82;
+    const bX = x + (CW - bW) / 2;
 
-    // ── FONDO: barcode piccolo ────────────────────────────
+    doc.setFillColor(245, 200, 0);
+    doc.roundedRect(bX, bY, bW, bH, 3, 3, 'F');
+
+    doc.setTextColor(10, 15, 107);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6);
+    doc.text('TICKETS', x + CW / 2, bY + bH * 0.3, { align: 'center' });
+
+    doc.setFontSize(CW > 55 ? 20 : 16);
+    doc.text(String(p.tickets || '—'), x + CW / 2, bY + bH * 0.82, { align: 'center' });
+
+    // ── Fondo: barcode piccolo ────────────────────────────
+    const bcY = bY + bH + CH * 0.04;
+    const bcH = CH - (bcY - y) - CH * 0.04;
+    const bcW = CW * 0.86;
+    const bcX = x + (CW - bcW) / 2;
+
     const bcData = barcodeToDataURL(p.barcode);
     if (bcData) {
       doc.setFillColor(255, 255, 255);
-      doc.roundedRect(10, 39, W - 20, 13, 1.5, 1.5, 'F');
-      doc.addImage(bcData, 'PNG', 11, 39.5, W - 22, 12);
+      doc.roundedRect(bcX, bcY, bcW, bcH, 1.5, 1.5, 'F');
+      doc.addImage(bcData, 'PNG', bcX + 1, bcY + 0.5, bcW - 2, bcH - 1);
     } else {
       doc.setTextColor(180, 180, 180);
-      doc.setFontSize(7);
-      doc.text(p.barcode, W / 2, 47, { align: 'center' });
+      doc.setFontSize(5.5);
+      doc.text(p.barcode, x + CW / 2, bcY + bcH / 2 + 2, { align: 'center' });
     }
   });
 
