@@ -901,7 +901,6 @@ async function printAllLabels() {
 async function generateLabelsPDF(items) {
   const { jsPDF } = window.jspdf;
 
-  // Card size: 85mm x 55mm (business card landscape)
   const W = 85, H = 55;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [H, W] });
 
@@ -912,42 +911,39 @@ async function generateLabelsPDF(items) {
     doc.setFillColor(10, 15, 107);
     doc.roundedRect(0, 0, W, H, 3, 3, 'F');
 
-    // ── TOP SECTION: product name band ──────────────────
+    // ── TOP: nome prodotto (banda gialla) ────────────────
     doc.setFillColor(245, 200, 0);
-    doc.roundedRect(0, 0, W, 12, 3, 3, 'F');
-    doc.rect(0, 6, W, 6, 'F');
+    doc.roundedRect(0, 0, W, 11, 3, 3, 'F');
+    doc.rect(0, 5, W, 6, 'F');
     doc.setTextColor(10, 15, 107);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    const nameStr = p.name.length > 32 ? p.name.substring(0, 31) + '…' : p.name;
-    doc.text(nameStr, W / 2, 8.2, { align: 'center' });
+    const nameStr = p.name.length > 34 ? p.name.substring(0, 33) + '…' : p.name;
+    doc.text(nameStr, W / 2, 7.8, { align: 'center' });
 
-    // ── MIDDLE: big TICKETS badge ───────────────────────
-    // Yellow pill centered
-    const badgeW = 46, badgeH = 18, badgeX = (W - badgeW) / 2, badgeY = 13;
+    // ── CENTRO: badge TICKETS grande ────────────────────
+    const bW = 60, bH = 24, bX = (W - bW) / 2, bY = 13;
     doc.setFillColor(245, 200, 0);
-    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3, 3, 'F');
+    doc.roundedRect(bX, bY, bW, bH, 4, 4, 'F');
 
-    // "TICKETS" small label
     doc.setTextColor(10, 15, 107);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.text('TICKETS', W / 2, badgeY + 5.5, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text('TICKETS', W / 2, bY + 6, { align: 'center' });
 
-    // Big ticket number
-    doc.setFontSize(18);
-    doc.text(String(p.tickets || '—'), W / 2, badgeY + 14, { align: 'center' });
+    doc.setFontSize(22);
+    doc.text(String(p.tickets || '—'), W / 2, bY + 18, { align: 'center' });
 
-    // ── BOTTOM: barcode ──────────────────────────────────
+    // ── FONDO: barcode piccolo ────────────────────────────
     const bcData = barcodeToDataURL(p.barcode);
     if (bcData) {
       doc.setFillColor(255, 255, 255);
-      doc.roundedRect(6, 33, W - 12, 19, 2, 2, 'F');
-      doc.addImage(bcData, 'PNG', 7, 34, W - 14, 17);
+      doc.roundedRect(10, 39, W - 20, 13, 1.5, 1.5, 'F');
+      doc.addImage(bcData, 'PNG', 11, 39.5, W - 22, 12);
     } else {
-      doc.setTextColor(200, 200, 200);
-      doc.setFontSize(8);
-      doc.text(p.barcode, W / 2, 44, { align: 'center' });
+      doc.setTextColor(180, 180, 180);
+      doc.setFontSize(7);
+      doc.text(p.barcode, W / 2, 47, { align: 'center' });
     }
   });
 
