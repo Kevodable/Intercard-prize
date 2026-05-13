@@ -901,58 +901,53 @@ async function printAllLabels() {
 async function generateLabelsPDF(items) {
   const { jsPDF } = window.jspdf;
 
-  // Card size: 85mm x 55mm (business card)
+  // Card size: 85mm x 55mm (business card landscape)
   const W = 85, H = 55;
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [H, W] });
 
   items.forEach((p, idx) => {
     if (idx > 0) doc.addPage([H, W], 'landscape');
 
-    // Background
-    doc.setFillColor(10, 15, 107); // navy
+    // Navy background
+    doc.setFillColor(10, 15, 107);
     doc.roundedRect(0, 0, W, H, 3, 3, 'F');
 
-    // Yellow top band
+    // ── TOP SECTION: product name band ──────────────────
     doc.setFillColor(245, 200, 0);
-    doc.roundedRect(0, 0, W, 13, 3, 3, 'F');
-    doc.rect(0, 6, W, 7, 'F'); // square bottom of top band
-
-    // Product name in yellow band
+    doc.roundedRect(0, 0, W, 12, 3, 3, 'F');
+    doc.rect(0, 6, W, 6, 'F');
     doc.setTextColor(10, 15, 107);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     const nameStr = p.name.length > 32 ? p.name.substring(0, 31) + '…' : p.name;
-    doc.text(nameStr, W / 2, 8.5, { align: 'center' });
+    doc.text(nameStr, W / 2, 8.2, { align: 'center' });
 
-    // Barcode image
-    const bcData = barcodeToDataURL(p.barcode);
-    if (bcData) {
-      // White barcode background pill
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(8, 14, W - 16, 28, 2, 2, 'F');
-      doc.addImage(bcData, 'PNG', 9, 15, W - 18, 26);
-    } else {
-      doc.setTextColor(200, 200, 200);
-      doc.setFontSize(8);
-      doc.text(p.barcode, W / 2, 30, { align: 'center' });
-    }
-
-    // Tickets badge bottom right
+    // ── MIDDLE: big TICKETS badge ───────────────────────
+    // Yellow pill centered
+    const badgeW = 46, badgeH = 18, badgeX = (W - badgeW) / 2, badgeY = 13;
     doc.setFillColor(245, 200, 0);
-    doc.roundedRect(W - 30, H - 13, 28, 11, 2, 2, 'F');
+    doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3, 3, 'F');
+
+    // "TICKETS" small label
     doc.setTextColor(10, 15, 107);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7);
-    doc.text('TICKETS', W - 16, H - 8.2, { align: 'center' });
-    doc.setFontSize(11);
-    doc.text(String(p.tickets || '—'), W - 16, H - 4, { align: 'center' });
+    doc.text('TICKETS', W / 2, badgeY + 5.5, { align: 'center' });
 
-    // Price bottom left
-    if (p.price) {
+    // Big ticket number
+    doc.setFontSize(18);
+    doc.text(String(p.tickets || '—'), W / 2, badgeY + 14, { align: 'center' });
+
+    // ── BOTTOM: barcode ──────────────────────────────────
+    const bcData = barcodeToDataURL(p.barcode);
+    if (bcData) {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(6, 33, W - 12, 19, 2, 2, 'F');
+      doc.addImage(bcData, 'PNG', 7, 34, W - 14, 17);
+    } else {
       doc.setTextColor(200, 200, 200);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.text(`€ ${p.price}`, 6, H - 4);
+      doc.setFontSize(8);
+      doc.text(p.barcode, W / 2, 44, { align: 'center' });
     }
   });
 
