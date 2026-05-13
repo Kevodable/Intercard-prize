@@ -6,6 +6,7 @@
 <title>Intercard Prize Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
@@ -555,13 +556,13 @@
   .notif.show { transform: translateY(0); opacity: 1; }
   .notif.error { border-color: var(--danger); color: var(--danger); }
 
-  /* Hide html5-qrcode default UI */
-  #scanner-inner video { width:100%!important; height:100%!important; object-fit:cover; border-radius:0; }
-  #scanner-inner img { display:none!important; }
-  #html5-qrcode-button-camera-permission,
-  #html5-qrcode-anchor-scan-type-change,
-  #html5qr-code-full-region__scan_region,
-  #html5qr-code-full-region__dashboard { display:none!important; }
+  /* Hide html5-qrcode default UI chrome */
+  #scanner-inner { width:100%; height:100%; overflow:hidden; border-radius:16px; }
+  #scanner-inner video { width:100%!important; height:100%!important; object-fit:cover!important; border-radius:0; }
+  #scanner-inner img,
+  #scanner-inner button,
+  #scanner-inner select,
+  #scanner-inner span { display:none!important; }
 
   @media (max-width: 500px) {
     .form-grid { grid-template-columns: 1fr; }
@@ -716,11 +717,8 @@
 <!-- Scanner overlay -->
 <div class="scanner-overlay" id="scanner-overlay">
   <div class="scanner-box">
-    <video id="scanner-video" autoplay playsinline muted></video>
-    <canvas id="scanner-canvas" style="display:none"></canvas>
-    <div class="scanner-crosshair">
-      <div class="crosshair-inner" id="crosshair-inner"></div>
-    </div>
+    <div id="scanner-inner"></div>
+    <div class="scanner-crosshair"><div class="crosshair-inner"></div></div>
   </div>
   <p class="scanner-msg">Inquadra il barcode del prodotto</p>
   <p class="scanner-manual" id="scan-status">Inizializzazione fotocamera…</p>
@@ -1003,139 +1001,58 @@ function dateStamp() {
 function pad(n) { return String(n).padStart(2,'0'); }
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ─── BARCODE SCANNER (fast: BarcodeDetector native → ZXing WASM fallback) ────
-let scanStream = null;
-let scanRAF = null;
-let scanDetector = null;
-let scanActive = false;
+// ─── BARCODE SCANNER ─────────────────────────────────────
+let html5Scanner = null;
 
 async function openScanner() {
   document.getElementById('scanner-overlay').classList.add('open');
-  const status = document.getElementById('scan-status');
-  const crosshair = document.getElementById('crosshair-inner');
-  status.textContent = 'Avvio fotocamera…';
-  crosshair.style.borderColor = '';
-  scanActive = true;
-
-  const video = document.getElementById('scanner-video');
-  video.style.display = '';
+  document.getElementById('scan-status').textContent = 'Avvio fotocamera…';
 
   try {
-    // Request highest resolution back camera for better barcode reads
-    scanStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width:  { ideal: 1920 },
-        height: { ideal: 1080 },
-      }
-    });
-    video.srcObject = scanStream;
-    await video.play();
-    status.textContent = 'Pronto — inquadra il barcode';
+    html5Scanner = new Html5Qrcode('scanner-inner', { verbose: false });
 
-    // ── Strategy 1: BarcodeDetector API (Chrome Android, fast) ──
-    if ('BarcodeDetector' in window) {
-      scanDetector = new BarcodeDetector({
-        formats: ['ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','codabar']
-      });
-      runNativeLoop(video, crosshair);
-      return;
-    }
+    await html5Scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 25,
+        qrbox: { width: 280, height: 120 },
+        aspectRatio: 1.777,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+        ],
+      },
+      (text) => {
+        document.getElementById('f-barcode').value = text;
+        updatePreview();
+        closeScanner();
+        notify(`Barcode acquisito: ${text}`);
+      },
+      () => {}
+    );
 
-    // ── Strategy 2: ZXing-wasm via CDN (Safari iOS, slower but works) ──
-    status.textContent = 'Caricamento decoder…';
-    await loadZXingWasm();
-    status.textContent = 'Pronto — inquadra il barcode';
-    runZXingLoop(video, crosshair);
+    document.getElementById('scan-status').textContent = 'Pronto — inquadra il barcode';
 
   } catch(e) {
     console.error(e);
-    status.textContent = '✕ ' + (e.message || 'Fotocamera non accessibile');
+    document.getElementById('scan-status').textContent = '✕ ' + (e.message || 'Fotocamera non accessibile');
   }
 }
 
-// Native BarcodeDetector loop — runs at display framerate via rAF
-function runNativeLoop(video, crosshair) {
-  const tick = async () => {
-    if (!scanActive) return;
-    if (video.readyState >= 2) {
-      try {
-        const codes = await scanDetector.detect(video);
-        if (codes.length) { onBarcodeFound(codes[0].rawValue, crosshair); return; }
-      } catch {}
-    }
-    scanRAF = requestAnimationFrame(tick);
-  };
-  scanRAF = requestAnimationFrame(tick);
-}
-
-// ZXing-wasm canvas loop — 25fps via setTimeout to avoid blocking
-let zxingReader = null;
-async function loadZXingWasm() {
-  if (zxingReader) return;
-  await new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js';
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
-function runZXingLoop(video, crosshair) {
-  const canvas = document.getElementById('scanner-canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const hints = new Map();
-  hints.set(2, [ // DecodeHintType.POSSIBLE_FORMATS
-    1,   // AZTEC
-    4,   // CODE_39
-    6,   // CODE_128
-    8,   // EAN_8
-    9,   // EAN_13
-    14,  // ITF
-    17,  // UPC_A
-    18,  // UPC_E
-  ]);
-  hints.set(3, true); // TRY_HARDER
-
-  const reader = new ZXingBrowser.MultiFormatReader();
-  reader.setHints(hints);
-
-  const tick = () => {
-    if (!scanActive) return;
-    if (video.readyState >= 2) {
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      try {
-        const lum = new ZXingBrowser.HTMLCanvasElementLuminanceSource(canvas);
-        const bmp = new ZXingBrowser.BinaryBitmap(new ZXingBrowser.HybridBinarizer(lum));
-        const result = reader.decode(bmp);
-        if (result) { onBarcodeFound(result.getText(), crosshair); return; }
-      } catch {}
-    }
-    setTimeout(tick, 40); // ~25fps
-  };
-  tick();
-}
-
-function onBarcodeFound(value, crosshair) {
-  // Flash green
-  crosshair.style.borderColor = '#00ff88';
-  setTimeout(() => {
-    document.getElementById('f-barcode').value = value;
-    updatePreview();
-    closeScanner();
-    notify(`Barcode acquisito: ${value}`);
-  }, 120);
-}
-
-function closeScanner() {
-  scanActive = false;
-  if (scanRAF) { cancelAnimationFrame(scanRAF); scanRAF = null; }
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  const video = document.getElementById('scanner-video');
-  video.srcObject = null;
+async function closeScanner() {
+  if (html5Scanner) {
+    try {
+      if (html5Scanner.isScanning) await html5Scanner.stop();
+      html5Scanner.clear();
+    } catch(e) { console.warn(e); }
+    html5Scanner = null;
+  }
+  document.getElementById('scanner-inner').innerHTML = '';
   document.getElementById('scanner-overlay').classList.remove('open');
 }
 
