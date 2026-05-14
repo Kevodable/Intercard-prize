@@ -16,6 +16,46 @@
 <script src="jsbarcode.min.js"></script>
 <script src="html5-qrcode.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
+<script>
+// ─── Service Worker registration ─────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // Controlla aggiornamenti ogni volta che si apre l'app
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nuova versione disponibile — mostra notifica
+            showUpdateBanner();
+          }
+        });
+      });
+    });
+  });
+}
+
+function showUpdateBanner() {
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    position:fixed; bottom:0; left:0; right:0; z-index:999;
+    background:#0d1030; border-top:2px solid #f5c800;
+    padding:14px 20px; display:flex; align-items:center;
+    gap:12px; font-family:'DM Sans',sans-serif; font-size:14px; color:#e8ecf5;
+  `;
+  banner.innerHTML = `
+    <span style="flex:1">🔄 Nuova versione disponibile</span>
+    <button onclick="location.reload()" style="
+      background:#f5c800; color:#07091a; border:none; border-radius:8px;
+      padding:8px 18px; font-weight:700; cursor:pointer; font-size:13px;
+    ">Aggiorna</button>
+    <button onclick="this.parentElement.remove()" style="
+      background:none; border:none; color:#6b7a9e; cursor:pointer; font-size:18px; padding:0 4px;
+    ">✕</button>
+  `;
+  document.body.appendChild(banner);
+}
+</script>
 <style>
   :root {
     --bg: #07091a;
@@ -727,12 +767,6 @@
         <input type="text" id="f-name" placeholder="Es. Yellow Yo-Yo" autocomplete="off">
       </div>
 
-      <!-- Each -->
-      <div class="field">
-        <label>Each</label>
-        <input type="text" id="f-each" value="EACH" placeholder="EACH">
-      </div>
-
       <!-- Quantità -->
       <div class="field">
         <label>Quantità Totale</label>
@@ -751,17 +785,10 @@
         <input type="number" id="f-tickets" placeholder="15" min="0" step="1">
       </div>
 
-      <!-- Colonna fissa "1" -->
-      <div class="field">
-        <label>Valore fisso (col. 7)</label>
-        <input type="number" id="f-fixed" value="1" placeholder="1">
-      </div>
-
-      <!-- Same as Price -->
-      <div class="field">
-        <label>Same as Price</label>
-        <input type="number" id="f-same" placeholder="0.05" min="0" step="0.01">
-      </div>
+      <!-- Campi tecnici nascosti -->
+      <input type="hidden" id="f-each" value="EACH">
+      <input type="hidden" id="f-fixed" value="1">
+      <input type="hidden" id="f-same" value="">
 
     </div>
 
@@ -919,14 +946,10 @@ document.getElementById('f-barcode').addEventListener('input', function() {
   }
 });
 
-// Auto-fill same as price when price changes
+// Auto-fill same as price when price changes (always mirrors price)
 document.getElementById('f-price').addEventListener('input', function() {
-  const sameField = document.getElementById('f-same');
-  if (!sameField._userEdited) sameField.value = this.value;
+  document.getElementById('f-same').value = this.value;
   updatePreview();
-});
-document.getElementById('f-same').addEventListener('input', function() {
-  this._userEdited = !!this.value;
 });
 
 // ─── Add product ──────────────────────────────────────────
@@ -946,13 +969,10 @@ function addProduct() {
 }
 
 function clearForm() {
-  ['f-barcode','f-name','f-qty','f-price','f-tickets','f-same'].forEach(id => {
-    const el = document.getElementById(id);
-    el.value = '';
-    if (id === 'f-same') el._userEdited = false;
+  ['f-barcode','f-name','f-qty','f-price','f-tickets'].forEach(id => {
+    document.getElementById(id).value = '';
   });
-  document.getElementById('f-each').value = 'EACH';
-  document.getElementById('f-fixed').value = '1';
+  document.getElementById('f-same').value = '';
   document.getElementById('barcode-warning').style.display = 'none';
   updatePreview();
 }
